@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# R
+.Rapp.history
+.Rhistory
+.RData
+
+# Shiny / deploy
+rsconnect/
+submissions/
+
+# Secrets
+service-account.json
