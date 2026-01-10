@@ -73,8 +73,8 @@ ui <- fluidPage(
         
         tabPanel(
           "Scoreboard",
-          h4("Lineups will be locked and visible at kickoff of the first Wild Card game. 
-             Then reopened at the end of the final game. You can reference previous lineups here.")
+          h4("Submitted Lineups"),
+          uiOutput("scoreboard_ui")
         )
       )
     )
@@ -90,6 +90,54 @@ sheet_url <- "https://docs.google.com/spreadsheets/d/1o9Unvct-PpaV_SOus1gEMP8kkD
 gs4_auth(path = "service-account.json")
 
 server <- function(input, output, session) {
+  
+  available_rounds <- reactive({
+    now <- with_tz(Sys.time(), "America/Chicago")
+    
+    round_windows %>%
+      filter(now >= open_time, now < close_time) %>%
+      pull(round)
+  })
+
+  scoreboard_data <- reactive({
+    
+    read_sheet(
+      ss = sheet_url,
+      sheet = "Lineups"
+    ) %>%
+      mutate(
+        # Ensure timestamp is datetime
+        timestamp = ymd_hms(timestamp, tz = "America/Chicago")
+      ) %>%
+      
+      # ---- Filter to the currently active round ----
+    filter(playoff_round %in% available_rounds()) %>%
+      
+      # ---- Keep only most recent submission per manager ----
+    arrange(manager_full_name, desc(timestamp)) %>%
+      distinct(manager_full_name, playoff_round, .keep_all = TRUE) %>%
+      
+      # ---- Select & rename columns for display ----
+    select(
+      Manager = manager_full_name,
+      Round   = playoff_round,
+      QB      = qb,
+      RB1     = rb1,
+      RB2     = rb2,
+      WR1     = wr1,
+      WR2     = wr2,
+      TE      = te,
+      FLEX    = flex,
+      K       = k,
+      DEF     = def
+    ) %>%
+      
+      arrange(Manager)
+  })
+  
+  scoreboard_open <- reactive({
+    with_tz(Sys.time(), "America/Chicago") >= kickoff_time
+  })
   
   output$summary <- renderTable({
     req(input$qb)
@@ -112,16 +160,6 @@ server <- function(input, output, session) {
     )
   }, striped = TRUE, hover = TRUE)
   
-  
-
-  available_rounds <- reactive({
-    now <- with_tz(Sys.time(), "America/Chicago")
-    
-    round_windows %>%
-      filter(now >= open_time, now < close_time) %>%
-      pull(round)
-  })
-  
   output$round_selector <- renderUI({
     rounds <- available_rounds()
     
@@ -139,11 +177,25 @@ server <- function(input, output, session) {
     }
   })
   
-  
-  
   output$scoring_table <- renderTable({
     scoring_settings
   }, striped = TRUE, hover = TRUE, bordered = TRUE)
+  
+  output$scoreboard_ui <- renderUI({
+    
+    if (!scoreboard_open()) {
+      tags$p(
+        "⏳ Scoreboard will be available at kickoff (3:30 PM CT).",
+        style = "font-weight: bold; color: gray;"
+      )
+    } else {
+      tableOutput("scoreboard_table")
+    }
+  })
+  
+  output$scoreboard_table <- renderTable({
+    scoreboard_data()
+  }, striped = TRUE, hover = TRUE)
   
   output$rules_text <- renderUI({
     tagList(
@@ -164,7 +216,6 @@ server <- function(input, output, session) {
       p("Good luck!")
     )
   })
-  
   
   observeEvent(input$submit, {
     

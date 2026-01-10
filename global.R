@@ -7,6 +7,9 @@ library(googlesheets4)
 # Main path
 folder_path <- "/Users/thefam/Desktop/FF_challenge_25"
 
+# Wild Card Kickoff time
+kickoff_time <- ymd_hm("2026-01-10 15:30", tz = "America/Chicago")
+
 # ---- Load player pools ----
 load_pool <- function(filename) {
   read_csv(filename) %>% 
