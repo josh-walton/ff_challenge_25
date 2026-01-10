@@ -45,7 +45,7 @@ ui <- fluidPage(
       tags$hr(),
       
       h5("Current Selection"),
-      tableOutput("summary"),
+      uiOutput("summary_ui"),
       
       tags$small("Click Submit after selections are made"),
       br(), br(),
@@ -91,14 +91,25 @@ gs4_auth(path = "service-account.json")
 
 server <- function(input, output, session) {
   
+  now <- reactive({
+  with_tz(Sys.time(), "America/Chicago")
+  })
+  
+  
   available_rounds <- reactive({
-    now <- with_tz(Sys.time(), "America/Chicago")
-    
     round_windows %>%
-      filter(now >= open_time, now < close_time) %>%
+      filter(now() >= open_time, now() < close_time) %>%
       pull(round)
   })
-
+  
+  
+  scoreboard_rounds <- reactive({
+    round_windows %>%
+      filter(now() >= close_time) %>%
+      pull(round)
+  })
+  
+  
   scoreboard_data <- reactive({
     
     read_sheet(
@@ -106,12 +117,12 @@ server <- function(input, output, session) {
       sheet = "Lineups"
     ) %>%
       mutate(
-        # Ensure timestamp is datetime
+        # timestamp as datetime
         timestamp = ymd_hms(timestamp, tz = "America/Chicago")
       ) %>%
       
       # ---- Filter to the currently active round ----
-    filter(playoff_round %in% available_rounds()) %>%
+    filter(playoff_round %in% scoreboard_rounds()) %>% 
       
       # ---- Keep only most recent submission per manager ----
     arrange(manager_full_name, desc(timestamp)) %>%
@@ -136,11 +147,13 @@ server <- function(input, output, session) {
   })
   
   scoreboard_open <- reactive({
-    with_tz(Sys.time(), "America/Chicago") >= kickoff_time
+    now() >= kickoff_time
   })
+  
   
   output$summary <- renderTable({
     req(input$qb)
+    req(input$playoff_round)
     
     tibble(
       Slot = c("Manager", "Round", "QB", "RB1", "RB2", "WR1", "WR2", "TE", "FLEX", "K", "DEF"),
@@ -159,6 +172,20 @@ server <- function(input, output, session) {
       )
     )
   }, striped = TRUE, hover = TRUE)
+  
+  output$summary_ui <- renderUI({
+    
+    if (length(available_rounds()) == 0) {
+      tags$p(
+        "Lineups are currently locked.",
+        style = "color: gray; font-style: italic;"
+      )
+    } else {
+      tableOutput("summary")
+    }
+    
+  })
+  
   
   output$round_selector <- renderUI({
     rounds <- available_rounds()
