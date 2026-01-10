@@ -28,19 +28,28 @@ def_pool  <- load_pool("data/DEF_pool.csv")
 # Set timing windows for each round
 round_windows <- tibble(
   round = c("Wild Card", "Divisional", "Conference", "Super Bowl"),
-  open_time = with_tz(ymd_hm(c(
-    "2026-01-06 12:00",
-    "2026-01-12 23:00",
-    "2026-01-18 23:00",
-    "2026-01-25 23:00"
-  )), "America/Chicago"),
-  close_time = with_tz(ymd_hm(c(
-    "2026-01-10 15:30", # Wild Card lock
-    "2026-01-17 15:30",
-    "2026-01-25 14:00",
-    "2026-02-08 17:30"
-  )), "America/Chicago")
+  
+  open_time = force_tz(
+    ymd_hm(c(
+      "2026-01-06 12:00",
+      "2026-01-12 23:00",
+      "2026-01-18 23:00",
+      "2026-01-25 23:00"
+    )),
+    "America/Chicago"
+  ),
+  
+  close_time = force_tz(
+    ymd_hm(c(
+      "2026-01-10 15:30",
+      "2026-01-17 15:30",
+      "2026-01-25 14:00",
+      "2026-02-08 17:30"
+    )),
+    "America/Chicago"
+  )
 )
+
 
 # NFL Teams Table
 nfl_teams <- tribble(
