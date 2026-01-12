@@ -177,14 +177,26 @@ player_summary <- raw_f_stats %>%
 # FINAL DATA COMBINED
 full_summary_stats <- rbind(def_summary, player_summary)
 
-full_summary_stats <- full_summary_stats %>% 
-  mutate(round = case_when(week == 19 ~ "Wild Card",
-                          week == 20 ~ "Divisional",
-                          week == 21 ~ "Conference",
-                          week == 22 ~ "Super Bowl",
-                          TRUE ~ as.character(week)))
+# full_summary_stats <- full_summary_stats %>% 
+#   mutate(week = case_when(playoff_round == "Wild Card" ~ 19,
+#                           playoff_round == "Divisional" ~ 20,
+#                           playoff_round == "Conference" ~ 21,
+#                           playoff_round == "Super Bown" ~ 22,
+#                           TRUE ~ as.character(week)))
 
 # Combine with Lineup Submissions ####
 
 weekly_lineups_scored <- left_join(lineups_long, full_summary_stats, by = join_by(player == player_name))
+
+# Change scoring NAs to 0
+weekly_lineups_scored$total_f_points[is.na(weekly_lineups_scored$total_f_points)] <- 0
+
+# Define if on first round bye
+weekly_lineups_scored <- weekly_lineups_scored %>% 
+  mutate(week = case_when(playoff_round == "Wild Card" ~ "19",
+                          playoff_round == "Divisional" ~ "20",
+                          playoff_round == "Conference" ~ "21",
+                          playoff_round == "Super Bown" ~ "22",
+                          TRUE ~ as.character(week)),
+         first_round_bye = if_else(team %in% c("SEA", "DEN"), TRUE, FALSE))
 
