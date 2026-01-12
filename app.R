@@ -83,11 +83,6 @@ ui <- fluidPage(
 )
 
 # ---- Server ----
-# Google Sheets #
-sheet_url <- "https://docs.google.com/spreadsheets/d/1o9Unvct-PpaV_SOus1gEMP8kkDY97KekQRJN2XxQM2E/edit?gid=0#gid=0"
-
-# Use service account credentials
-gs4_auth(path = "service-account.json")
 
 server <- function(input, output, session) {
   

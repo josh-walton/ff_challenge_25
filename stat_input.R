@@ -1,40 +1,32 @@
-library(tidyverse)
 
-# Read CSVs ####
+source("global.R")
 
-submissions <- list.files(
-  submissions_path,
-  full.names = TRUE
+# Read Lineup Submissions ####
+# By most recent submission
+submissions <- read_sheet(
+  ss = sheet_url,
+  sheet = "Lineups"
 ) %>%
-  map_dfr(read_csv)
+  mutate(
+    timestamp = ymd_hms(timestamp)
+  ) %>%
+arrange(manager_full_name, desc(timestamp)) %>%
+  distinct(manager_full_name, playoff_round, .keep_all = TRUE)
 
 # Pivot Data
-
 lineups_long <- submissions %>%
   pivot_longer(
-    cols = c(qb, rb1, rb2, wr1, wr2, te, k, def),
+    cols = c(qb, rb1, rb2, wr1, wr2, te, flex, k, def),
     names_to = "slot",
     values_to = "player_w_team"
   )
 
+# Format player names
 lineups_long <- lineups_long %>%
   separate(
     player_w_team,
     into = c("player", "team"),
     sep = " - "
-  )
-
-# Add Positions
-lineups_long <- lineups_long %>%
-  mutate(
-    position = case_when(
-      slot == "qb"            ~ "QB",
-      slot %in% c("rb1","rb2")~ "RB",
-      slot %in% c("wr1","wr2")~ "WR",
-      slot == "te"            ~ "TE",
-      slot == "k"             ~ "K",
-      slot == "def"           ~ "DEF"
-    )
   )
 
 ## Gathering Stats per Player ####
@@ -46,21 +38,15 @@ player_info <- load_players() %>%
   mutate(clean_name = clean_player_names(display_name)) %>% 
   select(-display_name)
 
-# Player info for future reference - height, weight, experience
-player_personal_detail <- load_players() %>% 
-  filter(last_season == "2025") %>% 
-  mutate(clean_name = clean_player_names(display_name)) %>% 
-  select(gsis_id, player_name = clean_name, height, weight, years_of_experience)
-
-# Marquise to Hollywood Brown - single name change
-player_info$clean_name <- str_replace(player_info$clean_name, pattern = "Marquise Brown", replacement = "Hollywood Brown")
-
-
 # Play by play data for 2025 #
 pbp_data <- load_pbp(2025)
 
+current_round_number <- round_windows %>% 
+  filter(Sys.Date() > open_time) %>% 
+  pull(week)
+
 week_data <- pbp_data %>% 
-  filter(week == 17)
+  filter(week == current_round_number)
 
 # Fantasy points per QB (passer)
 passing_stats <- week_data %>% 
@@ -180,19 +166,19 @@ raw_player_stats_reference <- joined_stats %>%
 # Defense summary
 def_summary <- def_stats %>% 
   left_join(nfl_teams, by = join_by(defteam)) %>% 
-  mutate(week = 17) %>% 
+  mutate(week = current_round_number) %>% 
   select(week, player_name = player_name_full, total_f_points = f_total_def_points)
 
 # Players summary
 player_summary <- raw_f_stats %>% 
-  mutate(week = 17) %>% 
+  mutate(week = current_round_number) %>% 
   distinct(week, player_name, total_f_points)
 
 # FINAL DATA COMBINED
 full_summary_stats <- rbind(def_summary, player_summary)
 
 full_summary_stats <- full_summary_stats %>% 
-  mutate(week = case_when(week == 19 ~ "Wild Card",
+  mutate(round = case_when(week == 19 ~ "Wild Card",
                           week == 20 ~ "Divisional",
                           week == 21 ~ "Conference",
                           week == 22 ~ "Super Bowl",

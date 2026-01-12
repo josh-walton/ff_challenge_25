@@ -1,8 +1,16 @@
 library(tidyverse)
 library(lubridate)
 library(googlesheets4)
+library(nflfastR)
+library(nflreadr)
 
 # Global Items ####
+
+# Use service account credentials
+gs4_auth(path = "service-account.json")
+
+# Google Sheets #
+sheet_url <- "https://docs.google.com/spreadsheets/d/1o9Unvct-PpaV_SOus1gEMP8kkDY97KekQRJN2XxQM2E/edit?gid=0#gid=0"
 
 # Main path
 folder_path <- "/Users/thefam/Desktop/FF_challenge_25"
@@ -28,6 +36,7 @@ def_pool  <- load_pool("data/DEF_pool.csv")
 # Set timing windows for each round
 round_windows <- tibble(
   round = c("Wild Card", "Divisional", "Conference", "Super Bowl"),
+  week = c("19", "20", "21", "22"),
   
   open_time = force_tz(
     ymd_hm(c(
@@ -49,7 +58,6 @@ round_windows <- tibble(
     "America/Chicago"
   )
 )
-
 
 # NFL Teams Table
 nfl_teams <- tribble(
