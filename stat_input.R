@@ -1,6 +1,4 @@
 
-source("global.R")
-
 # Read Lineup Submissions ####
 # By most recent submission
 submissions <- read_sheet(
@@ -176,13 +174,6 @@ player_summary <- raw_f_stats %>%
 
 # FINAL DATA COMBINED
 full_summary_stats <- rbind(def_summary, player_summary)
-
-# full_summary_stats <- full_summary_stats %>% 
-#   mutate(week = case_when(playoff_round == "Wild Card" ~ 19,
-#                           playoff_round == "Divisional" ~ 20,
-#                           playoff_round == "Conference" ~ 21,
-#                           playoff_round == "Super Bown" ~ 22,
-#                           TRUE ~ as.character(week)))
 
 # Combine with Lineup Submissions ####
 

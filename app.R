@@ -14,6 +14,7 @@ library(googlesheets4)
 
 # Source helper scripts
 source("global.R")
+source("stat_input.R")
 source("helpers.R")
 
 
@@ -60,21 +61,25 @@ ui <- fluidPage(
     mainPanel(
       tabsetPanel(
         tabPanel(
+          "Scoreboard",
+          uiOutput("scoreboard_ui"),
+          selectInput(
+            "manager_detail",
+            "View lineup for:",
+            choices = NULL
+          ),
+          tableOutput("lineup_detail_table")
+        ),
+        
+        tabPanel(
           "Rules",
           h4("NFL Fantasy Playoff Challenge Rules"),
           uiOutput("rules_text")
         ),
         
         tabPanel(
-          "Scoring",
-          h4("Scoring Settings"),
+          "Scoring Settings",
           tableOutput("scoring_table")
-        ),
-        
-        tabPanel(
-          "Scoreboard",
-          h4("Submitted Lineups"),
-          uiOutput("scoreboard_ui")
         )
       )
     )
@@ -90,20 +95,33 @@ server <- function(input, output, session) {
   with_tz(Sys.time(), "America/Chicago")
   })
   
-  
   available_rounds <- reactive({
     round_windows %>%
       filter(now() >= open_time, now() < close_time) %>%
       pull(round)
   })
   
+  manager_totals <- reactive({
+    weekly_lineups_scored %>%
+      group_by(manager_full_name, playoff_round) %>%
+      summarise(
+        Total = sum(total_f_points, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      arrange(desc(Total)) %>%
+      mutate(Rank = row_number()) %>%
+      select(
+        Rank,
+        Manager = manager_full_name,
+        Total
+      )
+  })
   
   scoreboard_rounds <- reactive({
     round_windows %>%
       filter(now() >= close_time) %>%
       pull(round)
   })
-  
   
   scoreboard_data <- reactive({
     
@@ -142,9 +160,7 @@ server <- function(input, output, session) {
   })
   
   scoreboard_open <- reactive({
-    now() >= kickoff_time
-  })
-  
+    now() >= kickoff_time })
   
   output$summary <- renderTable({
     req(input$qb)
@@ -181,7 +197,6 @@ server <- function(input, output, session) {
     
   })
   
-  
   output$round_selector <- renderUI({
     rounds <- available_rounds()
     
@@ -215,8 +230,32 @@ server <- function(input, output, session) {
     }
   })
   
+  output$lineup_detail_table <- renderTable({
+    req(input$manager_detail)
+    
+    weekly_lineups_scored %>%
+      filter(manager_full_name == input$manager_detail) %>%
+      select(
+        Slot = slot,
+        Player = player,
+        Team = team,
+        "R1 Points" = total_f_points
+      ) %>%
+      mutate(
+        Slot = factor(
+          Slot,
+          levels = c("qb", "rb1", "rb2", "wr1", "wr2", "te", "flex", "k", "def")
+        ),
+        Slot = str_to_upper(as.character(Slot))
+      ) %>%
+      arrange(
+        match(Slot, c("QB", "RB1", "RB2", "WR1", "WR2", "TE", "FLEX", "K", "DEF"))
+      )
+  }, striped = TRUE, hover = TRUE)
+  
+  
   output$scoreboard_table <- renderTable({
-    scoreboard_data()
+    manager_totals()
   }, striped = TRUE, hover = TRUE)
   
   output$rules_text <- renderUI({
@@ -236,6 +275,14 @@ server <- function(input, output, session) {
                 reset with every change. Their multiplier increases each round they're on your roster consecutively.")
       ),
       p("Good luck!")
+    )
+  })
+  
+  observe({
+    updateSelectInput(
+      session,
+      "manager_detail",
+      choices = unique(weekly_lineups_scored$manager_full_name)
     )
   })
   
