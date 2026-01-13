@@ -5,6 +5,9 @@ library(tidyverse)
 library(googlesheets4)
 library(lubridate)
 
+# Sources
+source("global.R")
+
 
 # Read Lineup Submissions ####
 # By most recent submission
@@ -36,6 +39,8 @@ lineups_long <- lineups_long %>%
 
 ## Gathering Stats per Player ####
 
+clear_cache()
+
 # Player IDs and names for later join
 player_info <- load_players() %>% 
   filter(last_season == "2025") %>% 
@@ -46,9 +51,10 @@ player_info <- load_players() %>%
 # Play by play data for 2025 #
 pbp_data <- load_pbp(2025)
 
+# Pulls current week to filter the play by play data
 current_round_number <- round_windows %>% 
-  filter(Sys.Date() > open_time) %>% 
-  pull(week)
+  filter(Sys.Date() > close_time) %>% 
+  pull(max(week))
 
 week_data <- pbp_data %>% 
   filter(week == current_round_number)
