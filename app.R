@@ -10,13 +10,12 @@ library(nflplotR)
 library(scales)
 library(rsconnect)
 library(googlesheets4)
-
+library(lubridate)
 
 # Source helper scripts
 source("global.R")
 source("stat_input.R")
 source("helpers.R")
-
 
 # ---- UI ----
 ui <- fluidPage(
@@ -105,15 +104,15 @@ server <- function(input, output, session) {
     weekly_lineups_scored %>%
       group_by(manager_full_name, playoff_round) %>%
       summarise(
-        Total = sum(total_f_points, na.rm = TRUE),
+        wk19_total = sum(total_f_points, na.rm = TRUE),
         .groups = "drop"
       ) %>%
-      arrange(desc(Total)) %>%
+      arrange(desc(wk19_total)) %>%
       mutate(Rank = row_number()) %>%
       select(
         Rank,
         Manager = manager_full_name,
-        Total
+        "Wild Card Total" = wk19_total
       )
   })
   
@@ -239,7 +238,7 @@ server <- function(input, output, session) {
         Slot = slot,
         Player = player,
         Team = team,
-        "R1 Points" = total_f_points
+        Points = total_f_points
       ) %>%
       mutate(
         Slot = factor(
@@ -252,7 +251,6 @@ server <- function(input, output, session) {
         match(Slot, c("QB", "RB1", "RB2", "WR1", "WR2", "TE", "FLEX", "K", "DEF"))
       )
   }, striped = TRUE, hover = TRUE)
-  
   
   output$scoreboard_table <- renderTable({
     manager_totals()

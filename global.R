@@ -1,8 +1,4 @@
-library(tidyverse)
-library(lubridate)
-library(googlesheets4)
-library(nflfastR)
-library(nflreadr)
+
 
 # Global Items ####
 
