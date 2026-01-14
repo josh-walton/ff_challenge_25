@@ -14,7 +14,11 @@ folder_path <- "/Users/thefam/Desktop/FF_challenge_25"
 # Wild Card Kickoff time
 kickoff_time <- ymd_hm("2026-01-10 15:30", tz = "America/Chicago")
 
-# ---- Load player pools ----
+
+
+eliminated_teams <- c("LAC", "PIT", "PHI", "GB", "JAX", "CAR")
+
+# Load player pools 
 load_pool <- function(filename) {
   read_csv(filename) %>% 
     mutate(player_w_team = paste0(player, " - ", team)) %>% 

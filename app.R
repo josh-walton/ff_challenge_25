@@ -234,21 +234,25 @@ server <- function(input, output, session) {
     
     weekly_lineups_scored %>%
       filter(manager_full_name == input$manager_detail) %>%
-      select(
-        Slot = slot,
-        Player = player,
-        Team = team,
-        Points = total_f_points
-      ) %>%
       mutate(
         Slot = factor(
-          Slot,
-          levels = c("qb", "rb1", "rb2", "wr1", "wr2", "te", "flex", "k", "def")
+          slot,
+          levels = c("qb", "rb1", "rb2", "wr1", "wr2", "te", "flex", "k", "def"),
+          labels = c("QB", "RB1", "RB2", "WR1", "WR2", "TE", "FLEX", "K", "DEF")
         ),
-        Slot = str_to_upper(as.character(Slot))
+        Eligible = if_else(
+          team %in% eliminated_teams,
+          "❌",
+          "✅"
+        )
       ) %>%
-      arrange(
-        match(Slot, c("QB", "RB1", "RB2", "WR1", "WR2", "TE", "FLEX", "K", "DEF"))
+      arrange(Slot) %>%
+      select(
+        Slot,
+        Player = player,
+        Team = team,
+        Points = total_f_points,
+        Eligible
       )
   }, striped = TRUE, hover = TRUE)
   
