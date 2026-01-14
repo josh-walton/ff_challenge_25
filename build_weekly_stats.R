@@ -145,6 +145,7 @@ def_stats <- week_data %>%
           f_fumble = sum(fumble_lost, na.rm = T) * 2,
           f_punt_block = sum(punt_blocked, na.rm = T) * 4,
           f_fg_block = sum(field_goal_result == "blocked", na.rm = T) * 4,
+          f_def_tds = sum(td_team == defteam, na.rm = T) * 6,
           f_pts_allowed = if_else(max(posteam_score_post) == 0, 10,
                                   if_else(max(posteam_score_post) <= 6, 7,
                                           if_else(max(posteam_score_post) <= 13, 4,
@@ -152,7 +153,7 @@ def_stats <- week_data %>%
                                                           if_else(max(posteam_score_post) <= 27, 0,
                                                                   if_else(max(posteam_score_post) <= 34, -1,
                                                                           -4)))))),
-          f_total_def_points = f_int + f_sack + f_safety + f_fumble + f_punt_block + f_pts_allowed) %>% 
+          f_total_def_points = f_int + f_sack + f_safety + f_fumble + f_punt_block + f_pts_allowed + f_def_tds + f_fg_block) %>% 
   filter(!is.na(defteam))
 
 # Player Summary
