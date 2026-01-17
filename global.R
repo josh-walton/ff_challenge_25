@@ -1,5 +1,3 @@
-
-
 # Global Items ####
 
 # Use service account credentials
@@ -51,7 +49,7 @@ round_windows <- tibble(
   close_time = force_tz(
     ymd_hm(c(
       "2026-01-10 15:30",
-      "2026-01-17 15:30",
+      "2026-01-17 15:30", # Edited for testing
       "2026-01-25 14:00",
       "2026-02-08 17:30"
     )),

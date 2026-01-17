@@ -30,9 +30,7 @@ validate_round_open <- function(selected_round, allowed_rounds) {
   list(valid = TRUE)
 }
 
-
 # Dupe Player Validation
-
 validate_no_duplicates <- function(players) {
   dupes <- players[duplicated(players)]
   
@@ -50,7 +48,6 @@ validate_no_duplicates <- function(players) {
 }
 
 # Lineup Builder
-
 build_lineup <- function(input, first, last) {
   tibble(
     timestamp  = format(

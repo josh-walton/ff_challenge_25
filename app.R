@@ -62,6 +62,7 @@ ui <- fluidPage(
         tabPanel(
           "Scoreboard",
           uiOutput("scoreboard_ui"),
+          uiOutput("lineup_round_selector"),
           selectInput(
             "manager_detail",
             "View lineup for:",
@@ -104,16 +105,20 @@ server <- function(input, output, session) {
     weekly_lineups_scored %>%
       group_by(manager_full_name, playoff_round) %>%
       summarise(
-        wk19_total = sum(total_f_points, na.rm = TRUE),
+        round_total = sum(adjusted_points, na.rm = TRUE),
         .groups = "drop"
       ) %>%
-      arrange(desc(wk19_total)) %>%
+      pivot_wider(
+        names_from = playoff_round,
+        values_from = round_total,
+        names_glue = "{playoff_round} Total"
+      ) %>%
+      mutate(
+        Overall = rowSums(across(ends_with("Total")), na.rm = TRUE)
+      ) %>%
+      arrange(desc(Overall)) %>%
       mutate(Rank = row_number()) %>%
-      select(
-        Rank,
-        Manager = manager_full_name,
-        "Wild Card Total" = wk19_total
-      )
+      select(Rank, Manager = manager_full_name, everything())
   })
   
   scoreboard_rounds <- reactive({
@@ -134,7 +139,7 @@ server <- function(input, output, session) {
       ) %>%
       
       # ---- Filter to the currently active round ----
-    filter(playoff_round %in% scoreboard_rounds()) %>% 
+    filter(playoff_round %in% scoreboard_rounds()) %>%
       
       # ---- Keep only most recent submission per manager ----
     arrange(manager_full_name, desc(timestamp)) %>%
@@ -160,6 +165,24 @@ server <- function(input, output, session) {
   
   scoreboard_open <- reactive({
     now() >= kickoff_time })
+  
+  output$lineup_round_selector <- renderUI({
+    rounds <- scoreboard_rounds()
+    
+    if (length(rounds) == 0) {
+      tags$p(
+        "⏳ Lineups will be available after a round locks.",
+        style = "color: gray; font-style: italic;"
+      )
+    } else {
+      selectInput(
+        "lineup_round",
+        "Round:",
+        choices = rounds,
+        selected = tail(rounds, 1)  # auto-select most recent round
+      )
+    }
+  })
   
   output$summary <- renderTable({
     req(input$qb)
@@ -230,10 +253,13 @@ server <- function(input, output, session) {
   })
   
   output$lineup_detail_table <- renderTable({
-    req(input$manager_detail)
+    req(input$manager_detail, input$lineup_round)
     
     weekly_lineups_scored %>%
-      filter(manager_full_name == input$manager_detail) %>%
+      filter(
+        manager_full_name == input$manager_detail,
+        playoff_round == input$lineup_round
+      ) %>%
       mutate(
         Slot = factor(
           slot,

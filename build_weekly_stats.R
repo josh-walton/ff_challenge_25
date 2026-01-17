@@ -37,6 +37,18 @@ lineups_long <- lineups_long %>%
     sep = " - "
   )
 
+# Add week numbers to playoff round names
+lineups_long <- lineups_long %>%
+  left_join(
+    round_windows %>%
+      select(round, week),
+    by = c("playoff_round" = "round")
+  ) %>%
+  mutate(
+    week = as.numeric(week)
+  )
+
+
 ## Gathering Stats per Player ####
 
 clear_cache()
@@ -51,18 +63,20 @@ player_info <- load_players() %>%
 # Play by play data for 2025 #
 pbp_data <- load_pbp(2025)
 
-# Pulls current week to filter the play by play data
-current_round_number <- round_windows %>% 
-  filter(Sys.Date() > close_time) %>% 
-  pull(max(week))
+# Pulls all playoff week games #
+completed_weeks <- round_windows %>%
+  filter(Sys.time() > close_time) %>%
+  mutate(week = as.numeric(week)) %>%
+  pull(week)
 
+# Pull player stats data
 week_data <- pbp_data %>% 
-  filter(week == current_round_number)
+  filter(week %in% completed_weeks)
 
 # Fantasy points per QB (passer)
 passing_stats <- week_data %>% 
   filter(play_type %in% c("run", "pass")) %>%
-  group_by(passer_id) %>%
+  group_by(week, passer_id) %>%
   reframe(f_passing_yards = sum(passing_yards, na.rm = T) * 0.04,
           passing_yards = sum(passing_yards, na.rm = T),
           scramble_yards = sum(if_else(qb_scramble == 1, rushing_yards, 0), na.rm = TRUE),
@@ -87,7 +101,7 @@ passing_stats <- week_data %>%
 # Fantasy points per RB
 rushing_stats <- week_data %>% 
   filter(play_type %in% c("run", "qb_kneel")) %>%
-  group_by(rusher_id) %>% 
+  group_by(week, rusher_id) %>% 
   reframe(f_rush_fumbles = sum(fumble_lost, na.rm = T) * -2,
           rush_fumbles = sum(fumble_lost, na.rm = T),
           f_rush_tds = sum(rush_touchdown, na.rm = T) * 6,
@@ -107,7 +121,7 @@ rushing_stats <- week_data %>%
 # Fantasy points per WR
 receiving_stats <- week_data %>% 
   filter(play_type == "pass") %>%
-  group_by(receiver_player_id) %>% 
+  group_by(week, receiver_player_id) %>% 
   reframe(f_rec_tds = sum(pass_touchdown, na.rm = T) * 6,
           rec_tds = sum(pass_touchdown, na.rm = T),
           f_rec_fumbles = sum(fumble_lost, na.rm = T) * -2,
@@ -128,7 +142,7 @@ receiving_stats <- week_data %>%
 # Kicker
 k_stats <- week_data %>%
   filter(play_type %in% c("extra_point", "field_goal")) %>% 
-  group_by(kicker_player_id) %>%
+  group_by(week, kicker_player_id) %>%
   reframe(f_xp = sum(extra_point_result == "good", na.rm = T),
           f_fg_u40 = sum(field_goal_result == "made" & kick_distance < 40, na.rm = T) * 3,
           f_fg_4049 = sum(field_goal_result == "made" & kick_distance >39 & kick_distance <=49, na.rm = T) * 4,
@@ -138,7 +152,7 @@ k_stats <- week_data %>%
 
 # Defense
 def_stats <- week_data %>%  
-  group_by(defteam) %>% 
+  group_by(week, defteam) %>% 
   reframe(f_int = sum(interception, na.rm = T) *2,
           f_sack = sum(sack, na.rm = T),
           f_safety = sum(safety, na.rm = T) * 4,
@@ -158,9 +172,9 @@ def_stats <- week_data %>%
 
 # Player Summary
 joined_stats <- passing_stats %>% 
-  full_join(rushing_stats, by = join_by(gsis_id)) %>% 
-  full_join(receiving_stats, by = join_by(gsis_id)) %>% 
-  full_join(k_stats, by = join_by(gsis_id))
+  full_join(rushing_stats, by = join_by(week, gsis_id)) %>% 
+  full_join(receiving_stats, by = join_by(week, gsis_id)) %>% 
+  full_join(k_stats, by = join_by(week, gsis_id))
 
 joined_stats[is.na(joined_stats)] <- 0
 
@@ -178,20 +192,36 @@ raw_player_stats_reference <- joined_stats %>%
 # Defense summary
 def_summary <- def_stats %>% 
   left_join(nfl_teams, by = join_by(defteam)) %>% 
-  mutate(week = current_round_number) %>% 
   select(week, player_name = player_name_full, total_f_points = f_total_def_points)
 
 # Players summary
-player_summary <- raw_f_stats %>% 
-  mutate(week = current_round_number) %>% 
-  distinct(week, player_name, total_f_points)
+player_summary <- joined_stats %>% 
+  left_join(player_info, by = "gsis_id") %>% 
+  mutate(
+    total_f_points =
+      f_total_pass_points +
+      f_total_rush_points +
+      f_total_rec_points +
+      f_total_kicker_points
+  ) %>%
+  select(
+    week,
+    player_name = clean_name,
+    total_f_points
+  )
+
 
 # FINAL DATA COMBINED
 full_summary_stats <- rbind(def_summary, player_summary)
 
 # Combine with Lineup Submissions ####
 
-weekly_lineups_scored <- left_join(lineups_long, full_summary_stats, by = join_by(player == player_name))
+weekly_lineups_scored <- lineups_long %>%
+  left_join(
+    full_summary_stats,
+    by = c("player" = "player_name", "week")
+  )
+
 
 # Change scoring NAs to 0
 weekly_lineups_scored$total_f_points[is.na(weekly_lineups_scored$total_f_points)] <- 0
@@ -205,6 +235,23 @@ weekly_lineups_scored <- weekly_lineups_scored %>%
                           TRUE ~ as.character(week)),
          first_round_bye = if_else(team %in% c("SEA", "DEN"), TRUE, FALSE))
 
+# Add Divisional Round ####
+# Add future rounds (eventually)
+weekly_lineups_scored <- weekly_lineups_scored %>%
+  left_join(
+    previous_round_players,
+    by = c("manager_full_name", "player")
+  ) %>%
+  mutate(
+    in_prev_round = replace_na(in_prev_round, FALSE),
+    eligible = !team %in% eliminated_teams,
+    multiplier = if_else(
+      playoff_round == "Divisional" & in_prev_round & eligible,
+      2,
+      1
+    ),
+    adjusted_points = total_f_points * multiplier
+  )
 
 
 # Save Lineup Data ####
