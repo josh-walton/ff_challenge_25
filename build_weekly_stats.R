@@ -235,6 +235,13 @@ weekly_lineups_scored <- weekly_lineups_scored %>%
                           TRUE ~ as.character(week)),
          first_round_bye = if_else(team %in% c("SEA", "DEN"), TRUE, FALSE))
 
+# Define previous starters
+previous_round_players <- weekly_lineups_scored %>%
+  filter(playoff_round == "Wild Card") %>%
+  select(manager_full_name, player) %>%
+  distinct() %>%
+  mutate(in_prev_round = TRUE)
+
 # Add Divisional Round ####
 # Add future rounds (eventually)
 weekly_lineups_scored <- weekly_lineups_scored %>%
@@ -252,6 +259,7 @@ weekly_lineups_scored <- weekly_lineups_scored %>%
     ),
     adjusted_points = total_f_points * multiplier
   )
+
 
 
 # Save Lineup Data ####

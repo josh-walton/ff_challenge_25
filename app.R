@@ -118,7 +118,15 @@ server <- function(input, output, session) {
       ) %>%
       arrange(desc(Overall)) %>%
       mutate(Rank = row_number()) %>%
-      select(Rank, Manager = manager_full_name, everything())
+      select(
+        Rank,
+        Manager = manager_full_name,
+        matches("^Wild Card"),
+        matches("^Divisional"),
+        matches("^Conference"),
+        matches("^Super Bowl"),
+        Overall
+      )
   })
   
   scoreboard_rounds <- reactive({
@@ -270,14 +278,16 @@ server <- function(input, output, session) {
           team %in% eliminated_teams,
           "❌",
           "✅"
-        )
+        ),
+        multiplier = as.integer(multiplier)
       ) %>%
       arrange(Slot) %>%
       select(
         Slot,
         Player = player,
         Team = team,
-        Points = total_f_points,
+        Points = adjusted_points,
+        Multiplier = multiplier,
         Eligible
       )
   }, striped = TRUE, hover = TRUE)
