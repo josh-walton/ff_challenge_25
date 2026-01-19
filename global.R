@@ -14,7 +14,7 @@ kickoff_time <- ymd_hm("2026-01-10 15:30", tz = "America/Chicago")
 
 
 
-eliminated_teams <- c("LAC", "PIT", "PHI", "GB", "JAX", "CAR", "BUF", "SF")
+eliminated_teams <- c("LAC", "PIT", "PHI", "GB", "JAX", "CAR", "BUF", "SF", "HOU", "CHI")
 
 # Load player pools 
 load_pool <- function(filename) {
