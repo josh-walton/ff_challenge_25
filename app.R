@@ -91,9 +91,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  now <- reactive({
-  with_tz(Sys.time(), "America/Chicago")
-  })
+  now <- reactive(with_tz(Sys.time(), "America/Chicago"))
   
   available_rounds <- reactive({
     round_windows %>%
@@ -133,42 +131,6 @@ server <- function(input, output, session) {
     round_windows %>%
       filter(now() >= close_time) %>%
       pull(round)
-  })
-  
-  scoreboard_data <- reactive({
-    
-    read_sheet(
-      ss = sheet_url,
-      sheet = "Lineups"
-    ) %>%
-      mutate(
-        # timestamp as datetime
-        timestamp = ymd_hms(timestamp, tz = "America/Chicago")
-      ) %>%
-      
-      # ---- Filter to the currently active round ----
-    filter(playoff_round %in% scoreboard_rounds()) %>%
-      
-      # ---- Keep only most recent submission per manager ----
-    arrange(manager_full_name, desc(timestamp)) %>%
-      distinct(manager_full_name, playoff_round, .keep_all = TRUE) %>%
-      
-      # ---- Select & rename columns for display ----
-    select(
-      Manager = manager_full_name,
-      Round   = playoff_round,
-      QB      = qb,
-      RB1     = rb1,
-      RB2     = rb2,
-      WR1     = wr1,
-      WR2     = wr2,
-      TE      = te,
-      FLEX    = flex,
-      K       = k,
-      DEF     = def
-    ) %>%
-      
-      arrange(Manager)
   })
   
   scoreboard_open <- reactive({
@@ -316,11 +278,11 @@ server <- function(input, output, session) {
     )
   })
   
-  observe({
+  observeEvent(weekly_lineups_scored, {
     updateSelectInput(
       session,
       "manager_detail",
-      choices = unique(weekly_lineups_scored$manager_full_name)
+      choices = sort(unique(weekly_lineups_scored$manager_full_name))
     )
   })
   
