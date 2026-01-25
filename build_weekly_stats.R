@@ -48,7 +48,6 @@ lineups_long <- lineups_long %>%
     week = as.numeric(week)
   )
 
-
 ## Gathering Stats per Player ####
 
 clear_cache()
@@ -228,12 +227,7 @@ weekly_lineups_scored$total_f_points[is.na(weekly_lineups_scored$total_f_points)
 
 # Define if on first round bye
 weekly_lineups_scored <- weekly_lineups_scored %>% 
-  mutate(week = case_when(playoff_round == "Wild Card" ~ "19",
-                          playoff_round == "Divisional" ~ "20",
-                          playoff_round == "Conference" ~ "21",
-                          playoff_round == "Super Bown" ~ "22",
-                          TRUE ~ as.character(week)),
-         first_round_bye = if_else(team %in% c("SEA", "DEN"), TRUE, FALSE))
+  mutate(first_round_bye = if_else(team %in% c("SEA", "DEN"), TRUE, FALSE))
 
 # Define previous starters
 previous_round_players <- weekly_lineups_scored %>%
@@ -242,21 +236,35 @@ previous_round_players <- weekly_lineups_scored %>%
   distinct() %>%
   mutate(in_prev_round = TRUE)
 
-# Add Divisional Round ####
-# Add future rounds (eventually)
+# Add Multipliers per week ####
 weekly_lineups_scored <- weekly_lineups_scored %>%
-  left_join(
-    previous_round_players,
-    by = c("manager_full_name", "player")
-  ) %>%
+  arrange(manager_full_name, player, week) %>%
+  group_by(manager_full_name, player)
+
+weekly_lineups_scored <- weekly_lineups_scored %>%
   mutate(
-    in_prev_round = replace_na(in_prev_round, FALSE),
-    eligible = !team %in% eliminated_teams,
-    multiplier = if_else(
-      playoff_round == "Divisional" & in_prev_round & eligible,
-      2,
-      1
-    ),
+    continues_streak =
+      !is.na(lag(week)) &
+      week == lag(week) + 1
+  )
+
+weekly_lineups_scored <- weekly_lineups_scored %>%
+  mutate(
+    streak_group = cumsum(!continues_streak)
+  )
+
+weekly_lineups_scored <- weekly_lineups_scored %>%
+  group_by(manager_full_name, player, streak_group) %>%
+  mutate(
+    multiplier = pmin(row_number(), 4)
+  ) %>%
+  ungroup()
+
+
+# Adjust points to multiplier and add eligible markers for eliminated players
+weekly_lineups_scored <- weekly_lineups_scored %>%
+  mutate(
+    eligible = !team %in% eliminated_teams,  # visual marker if still remaining
     adjusted_points = total_f_points * multiplier
   )
 
