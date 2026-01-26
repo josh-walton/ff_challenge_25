@@ -1,7 +1,7 @@
 # Global Items ####
 
 # List of eliminated teams
-eliminated_teams <- c("LAC", "PIT", "PHI", "GB", "JAX", "CAR", "BUF", "SF", "HOU", "CHI")
+eliminated_teams <- c("LAC", "PIT", "PHI", "GB", "JAX", "CAR", "BUF", "SF", "HOU", "CHI", "LA", "DEN")
 
 # Order of playoff rounds
 round_levels <- c("Wild Card", "Divisional", "Conference", "Super Bowl")
